@@ -20,13 +20,28 @@ async function main() {
     const store = await prisma.store.create({
       data: {
         name: 'My Store',
+        description: 'Welcome to our store',
         backgroundColor: '#ffffff',
-        product: {
-          create: {
-            title: 'Sample Product',
-            price: 99.99,
-            description: 'A great product description goes here.',
-          },
+        stripeSecretKey: process.env.STRIPE_SECRET_KEY || '',
+        stripePublishableKey: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '',
+        products: {
+          create: [
+            {
+              title: 'The Blue Shirt',
+              price: 20.00,
+              description: 'A comfortable and stylish blue shirt for everyday wear',
+            },
+            {
+              title: 'The Red Shirt',
+              price: 25.00,
+              description: 'A vibrant red shirt that makes a statement',
+            },
+            {
+              title: 'The Green Shirt',
+              price: 22.00,
+              description: 'An eco-friendly green shirt made from sustainable materials',
+            },
+          ],
         },
       },
     });
