@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { hash } from 'bcryptjs';
-import { getServerSession } from 'next-auth';
-import { headers } from 'next/headers';
 
+// Create a single PrismaClient instance
 const prisma = new PrismaClient();
 
 // Initialize admin user and default store
@@ -25,9 +24,10 @@ async function initializeData() {
 
     const store = await prisma.store.findFirst();
     if (!store) {
-      await prisma.store.create({
+      return await prisma.store.create({
         data: {
           name: 'My Store',
+          description: 'Welcome to our store',
           backgroundColor: '#ffffff',
           stripeSecretKey: process.env.STRIPE_SECRET_KEY || '',
           stripePublishableKey: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '',
@@ -53,6 +53,7 @@ async function initializeData() {
         },
       });
     }
+    return store;
   } catch (error) {
     console.error('Error initializing data:', error);
     throw error;
@@ -62,31 +63,23 @@ async function initializeData() {
 // GET /api/store
 export async function GET() {
   try {
-    const headersList = headers();
+    const store = await initializeData();
     
-    // Check if it's an API request
-    const isApiRequest = headersList.get('accept')?.includes('application/json');
-    
-    await initializeData();
-    const store = await prisma.store.findFirst({
+    if (!store) {
+      return NextResponse.json(
+        { error: 'Store not found' },
+        { status: 404 }
+      );
+    }
+
+    // Get store with products
+    const storeWithProducts = await prisma.store.findFirst({
       include: {
         products: true,
       },
     });
 
-    if (!store) {
-      throw new Error('Store not found');
-    }
-
-    // For API requests, return JSON
-    if (isApiRequest) {
-      return NextResponse.json(store);
-    }
-
-    // For page requests, return HTML
-    return new NextResponse(JSON.stringify(store), {
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return NextResponse.json(storeWithProducts);
   } catch (error) {
     console.error('Error fetching store:', error);
     return NextResponse.json(
@@ -99,16 +92,14 @@ export async function GET() {
 // PUT /api/store
 export async function PUT(req: Request) {
   try {
-    const session = await getServerSession();
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     const data = await req.json();
     const store = await prisma.store.findFirst();
 
     if (!store) {
-      return NextResponse.json({ error: 'Store not found' }, { status: 404 });
+      return NextResponse.json(
+        { error: 'Store not found' },
+        { status: 404 }
+      );
     }
 
     // Update store settings
@@ -116,6 +107,7 @@ export async function PUT(req: Request) {
       where: { id: store.id },
       data: {
         name: data.name,
+        description: data.description,
         backgroundColor: data.backgroundColor,
         stripeSecretKey: data.stripeSecretKey,
         stripePublishableKey: data.stripePublishableKey,

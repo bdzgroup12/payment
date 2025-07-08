@@ -21,6 +21,7 @@ interface Store {
 export default function HomePage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [store, setStore] = useState<Store | null>(null);
 
   useEffect(() => {
@@ -29,17 +30,48 @@ export default function HomePage() {
 
   const fetchStore = async () => {
     try {
-      const response = await fetch('/api/store');
-      if (!response.ok) throw new Error('Failed to fetch store data');
+      setError(null);
+      const response = await fetch('/api/store', {
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to fetch store data' }));
+        throw new Error(errorData.error || 'Failed to fetch store data');
+      }
+      
       const data = await response.json();
       setStore(data);
       setProducts(data.products || []);
     } catch (error) {
       console.error('Error fetching store data:', error);
+      setError(error instanceof Error ? error.message : 'Failed to fetch store data');
     } finally {
       setLoading(false);
     }
   };
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold text-red-600">Error</h2>
+          <p className="mt-2 text-gray-600">{error}</p>
+          <button
+            onClick={() => {
+              setLoading(true);
+              fetchStore();
+            }}
+            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: store?.backgroundColor || '#f9fafb' }}>
@@ -58,6 +90,10 @@ export default function HomePage() {
           {loading ? (
             <div className="col-span-3 flex justify-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+            </div>
+          ) : products.length === 0 ? (
+            <div className="col-span-3 text-center text-gray-500">
+              No products available
             </div>
           ) : (
             products.map((product) => (
