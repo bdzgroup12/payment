@@ -8,11 +8,14 @@ const prisma = new PrismaClient();
 // Initialize admin user and default store
 async function initializeData() {
   try {
+    console.log('Initializing database data...');
+    
     const adminExists = await prisma.user.findUnique({
       where: { email: 'admin@admin.com' },
     });
 
     if (!adminExists) {
+      console.log('Creating admin user...');
       await prisma.user.create({
         data: {
           email: 'admin@admin.com',
@@ -20,11 +23,13 @@ async function initializeData() {
           role: 'admin',
         },
       });
+      console.log('Admin user created successfully');
     }
 
     const store = await prisma.store.findFirst();
     if (!store) {
-      return await prisma.store.create({
+      console.log('Creating default store...');
+      const newStore = await prisma.store.create({
         data: {
           name: 'My Store',
           description: 'Welcome to our store',
@@ -52,7 +57,10 @@ async function initializeData() {
           },
         },
       });
+      console.log('Default store created successfully');
+      return newStore;
     }
+    console.log('Store already exists');
     return store;
   } catch (error) {
     console.error('Error initializing data:', error);
@@ -63,9 +71,16 @@ async function initializeData() {
 // GET /api/store
 export async function GET() {
   try {
+    console.log('Store API GET request received');
+    
+    // Check if database is accessible
+    await prisma.$connect();
+    console.log('Database connection successful');
+    
     const store = await initializeData();
     
     if (!store) {
+      console.error('Store initialization failed');
       return NextResponse.json(
         { error: 'Store not found' },
         { status: 404 }
@@ -79,19 +94,27 @@ export async function GET() {
       },
     });
 
+    console.log('Store data fetched successfully');
     return NextResponse.json(storeWithProducts);
   } catch (error) {
-    console.error('Error fetching store:', error);
+    console.error('Store API error:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch store data' },
+      { 
+        error: 'Failed to fetch store data',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     );
+  } finally {
+    await prisma.$disconnect();
   }
 }
 
 // PUT /api/store
 export async function PUT(req: Request) {
   try {
+    console.log('Store API PUT request received');
+    
     const data = await req.json();
     const store = await prisma.store.findFirst();
 
@@ -133,12 +156,18 @@ export async function PUT(req: Request) {
       );
     }
 
+    console.log('Store updated successfully');
     return NextResponse.json(updatedStore);
   } catch (error) {
-    console.error('Error updating store:', error);
+    console.error('Store API PUT error:', error);
     return NextResponse.json(
-      { error: 'Failed to update store' },
+      { 
+        error: 'Failed to update store',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     );
+  } finally {
+    await prisma.$disconnect();
   }
 } 
