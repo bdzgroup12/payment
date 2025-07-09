@@ -24,7 +24,7 @@ export async function POST(req: Request) {
 
     // Initialize Stripe with the store's secret key
     const stripe = new Stripe(product.store.stripeSecretKey, {
-      apiVersion: '2023-10-16',
+      apiVersion: '2025-06-30.basil',
     });
 
     // Create Stripe session
